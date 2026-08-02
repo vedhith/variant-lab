@@ -29,7 +29,8 @@ export default async function ExperimentPage({
       <h1>{experiment.name}</h1>
       <p className="lede">
         {experiment.status} · {totalAssigned} visitor
-        {totalAssigned === 1 ? '' : 's'} assigned
+        {totalAssigned === 1 ? '' : 's'} assigned ·{' '}
+        <Link href={`/experiments/${experiment.id}/results`}>see results</Link>
       </p>
       <div className="mono">{experiment.id}</div>
 
