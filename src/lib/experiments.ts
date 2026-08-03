@@ -17,7 +17,8 @@ export class ValidationError extends Error {}
 export class NotFoundError extends Error {}
 
 const MAX_NAME_LENGTH = 200
-const MAX_HTML_BYTES = 512 * 1024
+/** Cap on any single HTML body. Exported so the generator rejects at the same size. */
+export const MAX_HTML_BYTES = 512 * 1024
 const MAX_VARIANTS = 10
 
 interface ExperimentRow {

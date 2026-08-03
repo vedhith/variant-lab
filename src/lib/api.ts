@@ -1,5 +1,6 @@
 import { NotFoundError, ValidationError } from './experiments'
 import { BucketingError } from './bucketing'
+import { GenerationError, NoVariantsError } from './generation/types'
 
 export interface ApiErrorBody {
   error: string
@@ -17,6 +18,16 @@ export function errorResponse(err: unknown): Response {
   }
   if (err instanceof NotFoundError) {
     return json<ApiErrorBody>({ error: err.message }, 404)
+  }
+  // The generator worked and found nothing to change. The request was fine, so
+  // it is not a 400, and nothing upstream broke, so it is not a 502.
+  if (err instanceof NoVariantsError) {
+    return json<ApiErrorBody>({ error: err.message }, 422)
+  }
+  // The generator failed, not the request. 502 rather than 500 so a caller can
+  // tell "retry this" apart from "this will never work".
+  if (err instanceof GenerationError) {
+    return json<ApiErrorBody>({ error: err.message }, 502)
   }
   // Anything else is a bug, not a client mistake. Log it for the server
   // operator and tell the caller nothing about the internals.
