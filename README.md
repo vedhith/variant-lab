@@ -2,13 +2,14 @@
 
 Run a real A/B test on a page without wiring up an analytics stack first.
 
-You paste a page, give it a second version, and Variant Lab handles the part
-that is easy to get subtly wrong: splitting visitors deterministically, keeping
-each one on the same version across visits, and counting what actually happened.
+You paste a page, it drafts alternative versions, and Variant Lab handles the
+part that is easy to get subtly wrong: splitting visitors deterministically,
+keeping each one on the same version across visits, and counting what actually
+happened.
 
-> **Status: week 2 of 3.** Assignment, conversion tracking, and a results page
-> with lift and confidence all work end to end. LLM variant generation is the
-> next slice — see [Roadmap](#roadmap) for exactly what is and is not built yet.
+> **Status: end of week 2 of 3.** Generation, assignment, conversion tracking,
+> and a results page with lift and confidence all work end to end. Week 3 is the
+> ship slice — see [Roadmap](#roadmap) for exactly what is and is not built yet.
 
 ---
 
@@ -30,20 +31,54 @@ servers agree on who sees what without sharing state.
 Requires Node 22 or newer.
 
 ```bash
-git clone https://github.com/vedhithkrishnakumar-cell/variant-lab
+git clone https://github.com/vedhith/variant-lab
 cd variant-lab
 npm install
 npm run dev
 ```
 
 Open <http://localhost:3000>. There is nothing else to configure — the database
-is created at `.data/variant-lab.db` on first write.
+is created at `.data/variant-lab.db` on first write, and variant generation
+works with no API key.
 
 ## Usage
 
 **In the browser.** The home page has a form: name the experiment, paste your
-baseline HTML, paste a variant, submit. You land on the experiment page, which
-shows both versions and how traffic has split so far.
+baseline HTML, hit **Generate variants**, edit the drafts you like, submit. You
+land on the experiment page, which shows every version and how traffic has split
+so far.
+
+**Drafting variants.** Ask for versions of a page:
+
+```bash
+curl -X POST http://localhost:3000/api/generate \
+  -H 'content-type: application/json' \
+  -d '{"baselineHtml":"<h1>Powerful analytics for busy teams</h1><a href=\"/signup\">Learn more</a>","count":3}'
+```
+
+```json
+{
+  "provider": "rules",
+  "variants": [
+    {
+      "key": "b",
+      "html": "<h1>Analytics for busy teams</h1><a href=\"/signup\">Learn more</a>",
+      "rationale": "Headline with the intensifiers removed: \"Powerful analytics for busy teams\" → \"Analytics for busy teams\". Tests whether the claim carries the page on its own."
+    },
+    {
+      "key": "c",
+      "html": "<h1>Powerful analytics for busy teams</h1><a href=\"/signup\">See how it works</a>",
+      "rationale": "Call to action made concrete: \"See how it works\" instead of \"Learn more\". The click costs the visitor exactly the same thing either way."
+    }
+  ],
+  "short": true
+}
+```
+
+Nothing is persisted by that call — drafts come back for a human to read and
+edit, and become an experiment only when you POST them to `/api/experiments`.
+`short: true` means fewer variants came back than you asked for, which is the
+honest answer when a page gives the generator little to work with.
 
 **From a page under test.** On load, ask which variant this visitor gets:
 
@@ -93,6 +128,8 @@ revenue or seconds on page.
 
 | Method | Path | Does |
 |---|---|---|
+| `POST` | `/api/generate` | Draft variants of a page. Persists nothing |
+| `GET` | `/api/generate` | Which generator is configured |
 | `POST` | `/api/experiments` | Create an experiment and its variants |
 | `GET` | `/api/experiments` | List experiments (without HTML bodies) |
 | `GET` | `/api/experiments/:id` | One experiment, its variants, and its current split |
@@ -100,13 +137,48 @@ revenue or seconds on page.
 | `POST` | `/api/events` | Record a conversion against the visitor's assignment |
 | `GET` | `/api/experiments/:id/results` | Rates, intervals, lift, and p-values (`?event=` to pick the name) |
 
-Bad input returns `400` with an `{ "error": ... }` body; unknown ids return `404`.
+Bad input returns `400` with an `{ "error": ... }` body; unknown ids return
+`404`. Generation adds two: `422` when the generator ran and found nothing to
+change about your page, and `502` when the model itself failed — a distinction
+worth having, because one of those is worth retrying and the other never is.
 
 ### Configuration
 
 | Variable | Default | Does |
 |---|---|---|
 | `VARIANT_LAB_DB` | `.data/variant-lab.db` | SQLite file path. `:memory:` for a throwaway instance. |
+| `ANTHROPIC_API_KEY` | unset | Set it and generation uses a model. Leave it unset and the offline rules run. |
+| `VARIANT_LAB_PROVIDER` | auto | `rules` or `anthropic`, overriding the line above. CI pins `rules`. |
+| `ANTHROPIC_MODEL` | `claude-sonnet-5` | Model id, when the Anthropic provider is in use. |
+| `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Point at a proxy or a stub. |
+
+---
+
+## How generation works
+
+Two providers behind one interface (`src/lib/generation/types.ts`), and the API
+route cannot tell them apart:
+
+- **`rules`** — the default, and what runs with no API key. Deterministic copy
+  edits to text that is already on the page: strip the intensifiers out of a
+  headline, cut a long headline at its first clause, turn an imperative headline
+  into a question, replace a vague CTA with a concrete one. It is a rewriter,
+  not a copywriter, and it will not invent "trusted by 10,000 teams" to win a
+  test. When it has nothing to say about a page it returns nothing rather than a
+  copy of what you gave it.
+- **`anthropic`** — a `fetch` call to the Messages API, no SDK dependency. The
+  prompt forbids inventing facts, changing link targets, and emitting scripts.
+
+Whatever comes back is treated as untrusted: HTML is stripped of `<script>`,
+`<iframe>`, inline `on*` handlers, and `javascript:` URLs before anyone sees it,
+drafts identical to the baseline or to each other are dropped, and keys are
+assigned after that filtering so they stay contiguous. Adding a provider means
+implementing `VariantProvider` — nothing else in the app knows which model, if
+any, wrote a variant.
+
+The point of the offline provider is that the demo path and the real path are
+the same path. The place an "it works with no API key" claim usually breaks is
+where the two diverge; here CI exercises the same route a paying user hits.
 
 ---
 
@@ -169,8 +241,14 @@ lie to you.
 
 Real ones, not modesty:
 
-- **No LLM generation yet.** You write the variants by hand. The generator is
-  the next slice and drops in behind the same `POST /api/experiments` shape.
+- **The offline rules are mechanical.** Four edits to a headline and a call to
+  action, and they only fire on plain-text headings and buttons — a heading with
+  markup inside it is skipped rather than mangled. They exist so the pipeline
+  runs with no API key, not to replace a copywriter. For actual copy ideas, set
+  `ANTHROPIC_API_KEY`.
+- **Generated HTML is filtered with regex**, which cannot be complete. It is a
+  guard against a model handing back something executable, not a sanitizer for
+  hostile input — read the drafts before you run them.
 - **The stats are a fixed-horizon test.** Refreshing the results page until it
   goes significant ("peeking") inflates false positives — that is a property of
   the method, not of this implementation. Pick a sample size up front. Sequential
@@ -191,29 +269,32 @@ Real ones, not modesty:
 
 - [x] **Week 1 — it runs.** Scaffold, schema, create an experiment, sticky
       deterministic assignment, CI.
-- [ ] **Week 2 — it's useful.** Conversion event ingest ✔, results page with
-      lift and confidence ✔, LLM variant generation behind a provider adapter
-      (not started).
-- [ ] **Week 3 — it ships.** Demo mode that needs no API key, screenshots,
-      edge cases (zero traffic, one variant, tied results).
+- [x] **Week 2 — it's useful.** Conversion event ingest, results page with lift
+      and confidence, LLM variant generation behind a provider adapter.
+- [ ] **Week 3 — it ships.** Screenshots, a seeded demo experiment, edge cases
+      (zero traffic, one variant, tied results).
 
 ---
 
 ## Development
 
 ```bash
-npm test        # vitest, 110 tests
+npm test        # vitest, 186 tests
 npm run typecheck
 npm run build
 ```
 
 CI runs all three on every push.
 
-Tests use an in-memory database, so they never touch `.data/`. Two files carry
-most of the weight: `tests/bucketing.test.ts` asserts determinism,
-order-independence, weight handling, and that the split is actually close to
-what was asked for; `tests/stats.test.ts` checks the maths against known
-values and pins down every degenerate case.
+Tests use an in-memory database, so they never touch `.data/`, and no test ever
+makes a network call — the model provider is exercised against an injected
+`fetch`, and the generation route is pinned to `VARIANT_LAB_PROVIDER=rules`, so
+running the suite never spends a token. Three files carry most of the weight:
+`tests/bucketing.test.ts` asserts determinism, order-independence, weight
+handling, and that the split is actually close to what was asked for;
+`tests/stats.test.ts` checks the maths against known values and pins down every
+degenerate case; `tests/generation-rules.test.ts` pins each copy rule to its
+exact output, including the pages it declines to touch.
 
 ---
 
