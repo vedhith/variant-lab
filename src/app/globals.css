@@ -165,3 +165,59 @@ table.results th {
 table.results tbody tr:last-child td {
   border-bottom: 0;
 }
+
+/* Authoring form: generation controls and the editable drafts below them. */
+.generate-row {
+  justify-content: flex-start;
+  align-items: center;
+  margin-top: 20px;
+}
+
+.generate-row button {
+  margin-top: 0;
+}
+
+label.inline {
+  display: inline;
+  margin: 0;
+}
+
+select.narrow {
+  width: auto;
+  padding: 8px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font: inherit;
+}
+
+button.link {
+  margin-top: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.draft {
+  border-left: 2px solid var(--border);
+  padding-left: 14px;
+  margin-top: 20px;
+}
+
+.small {
+  font-size: 12px;
+  margin: 6px 0;
+}
+
+.notice {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 13px;
+}
