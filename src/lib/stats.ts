@@ -103,8 +103,12 @@ export function wilsonInterval(
 
 /** The outcome of comparing one variant against the control. */
 export interface Comparison {
-  /** treatment rate − control rate, in percentage points expressed as a fraction. */
-  absoluteDifference: number
+  /**
+   * treatment rate − control rate, in percentage points expressed as a fraction.
+   * Null when either side has no visitors: an unseen variant has no rate, so
+   * the difference is unknown rather than large or zero.
+   */
+  absoluteDifference: number | null
   /**
    * Relative lift over the control, e.g. 0.2 for "20% better".
    * Null when the control converted nobody — dividing by a zero rate says
@@ -127,7 +131,10 @@ export interface Comparison {
  * one, since under the alternative the two rates are not assumed equal.
  *
  * Degenerate inputs return nulls rather than NaN or a fake certainty:
- * - either side with no visitors: nothing to compare
+ * - either side with no visitors: nothing to compare, so even the difference
+ *   is null. `rate()` reports an unvisited variant as 0, and subtracting that
+ *   from a control that does convert would read as "100% worse" about a
+ *   variant nobody has ever been shown
  * - both sides all-converting or none-converting: the rates are identical, so
  *   the difference is 0 and the p-value is 1
  */
@@ -136,20 +143,20 @@ export function compareProportions(
   treatment: Proportion,
   z: number = Z_95,
 ): Comparison {
-  const controlRate = rate(control)
-  const treatmentRate = rate(treatment)
-  const absoluteDifference = treatmentRate - controlRate
-  const lift = controlRate === 0 ? null : absoluteDifference / controlRate
-
   if (control.visitors === 0 || treatment.visitors === 0) {
     return {
-      absoluteDifference,
-      lift,
+      absoluteDifference: null,
+      lift: null,
       differenceInterval: null,
       pValue: null,
       significant: false,
     }
   }
+
+  const controlRate = rate(control)
+  const treatmentRate = rate(treatment)
+  const absoluteDifference = treatmentRate - controlRate
+  const lift = controlRate === 0 ? null : absoluteDifference / controlRate
 
   const pooled =
     (control.conversions + treatment.conversions) / (control.visitors + treatment.visitors)

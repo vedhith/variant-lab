@@ -48,8 +48,14 @@ export default async function ExperimentPage({
                 {variant.isControl ? ' (control)' : ''}
               </strong>
               <span className="muted">
-                {assigned} assigned · {(actual * 100).toFixed(1)}% actual vs{' '}
-                {(expected * 100).toFixed(1)}% target
+                {variant.weight === 0 ? (
+                  <>paused — weight 0, so it receives no traffic</>
+                ) : (
+                  <>
+                    {assigned} assigned · {(actual * 100).toFixed(1)}% actual vs{' '}
+                    {(expected * 100).toFixed(1)}% target
+                  </>
+                )}
               </span>
             </div>
             <pre>{variant.html}</pre>

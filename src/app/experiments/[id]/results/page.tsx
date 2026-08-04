@@ -8,7 +8,9 @@ import type { Interval } from '@/lib/stats'
 
 export const dynamic = 'force-dynamic'
 
-const percent = (value: number): string => `${(value * 100).toFixed(1)}%`
+/** A negative lift gets a real minus sign, to match the percentage-point column. */
+const percent = (value: number): string =>
+  `${value < 0 ? '−' : ''}${(Math.abs(value) * 100).toFixed(1)}%`
 
 /** Percentage-point differences carry their sign — "+1.4 pp" reads faster than "0.014". */
 const points = (value: number): string =>
@@ -25,11 +27,20 @@ function verdict(variant: VariantResult): string {
   if (variant.isControl) return 'baseline'
   const comparison = variant.comparison
   if (comparison === null || comparison.pValue === null) return 'not enough traffic'
+  const difference = comparison.absoluteDifference ?? 0
   if (comparison.significant) {
-    return comparison.absoluteDifference > 0 ? 'beating control' : 'losing to control'
+    return difference > 0 ? 'beating control' : 'losing to control'
   }
-  if (comparison.absoluteDifference === 0) return 'tied with control'
+  if (difference === 0) return 'tied with control'
   return 'too close to call'
+}
+
+/** The lift cell: percentage points, plus the relative figure when it means something. */
+function liftText(variant: VariantResult): string {
+  const comparison = variant.comparison
+  if (comparison === null || comparison.absoluteDifference === null) return '—'
+  const difference = points(comparison.absoluteDifference)
+  return comparison.lift === null ? difference : `${difference} (${percent(comparison.lift)})`
 }
 
 export default async function ResultsPage({
@@ -138,15 +149,7 @@ export default async function ResultsPage({
                     <td>{variant.conversions}</td>
                     <td>{percent(variant.rate)}</td>
                     <td className="muted">{intervalText(variant.interval, percent)}</td>
-                    <td>
-                      {variant.comparison === null
-                        ? '—'
-                        : variant.comparison.lift === null
-                          ? points(variant.comparison.absoluteDifference)
-                          : `${points(variant.comparison.absoluteDifference)} (${percent(
-                              variant.comparison.lift,
-                            )})`}
-                    </td>
+                    <td>{liftText(variant)}</td>
                     <td className="muted">
                       {intervalText(variant.comparison?.differenceInterval ?? null, points)}
                     </td>

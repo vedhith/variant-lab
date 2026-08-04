@@ -136,7 +136,7 @@ export function experimentResults(
   // margin. Ties leave `leader` null rather than picking whichever row the
   // database happened to return first.
   const winners = variants.filter(
-    (v) => v.comparison?.significant === true && v.comparison.absoluteDifference > 0,
+    (v) => v.comparison?.significant === true && (v.comparison.absoluteDifference ?? 0) > 0,
   )
   let leader: VariantResult | null = null
   if (winners.length > 0) {

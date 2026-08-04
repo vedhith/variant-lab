@@ -113,7 +113,7 @@ describe('compareProportions', () => {
     const forward = compareProportions(control, treatment)
     const backward = compareProportions(treatment, control)
 
-    expect(backward.absoluteDifference).toBeCloseTo(-forward.absoluteDifference, 12)
+    expect(backward.absoluteDifference!).toBeCloseTo(-forward.absoluteDifference!, 12)
     expect(backward.pValue!).toBeCloseTo(forward.pValue!, 12)
     expect(backward.lift).toBeCloseTo(-0.5, 12)
   })
@@ -192,6 +192,21 @@ describe('compareProportions', () => {
     expect(result.pValue).toBeNull()
     expect(result.differenceInterval).toBeNull()
     expect(result.significant).toBe(false)
+    expect(result.absoluteDifference).toBeNull()
+    expect(result.lift).toBeNull()
+  })
+
+  it('does not call an unseen variant a 100% loss', () => {
+    // A paused variant has no rate at all. Treating rate() 's 0 as its real
+    // rate would print "−8.0 pp (−100.0%)" about a variant nobody was shown.
+    const result = compareProportions(
+      { conversions: 8, visitors: 100 },
+      { conversions: 0, visitors: 0 },
+    )
+    expect(result.absoluteDifference).toBeNull()
+    expect(result.lift).toBeNull()
+    expect(result.pValue).toBeNull()
+    expect(result.significant).toBe(false)
   })
 
   it('never returns NaN, whatever the counts', () => {
@@ -212,7 +227,9 @@ describe('compareProportions', () => {
 
     for (const [a, b] of cases) {
       const result = compareProportions(a, b)
-      expect(Number.isNaN(result.absoluteDifference)).toBe(false)
+      expect(
+        result.absoluteDifference === null || Number.isFinite(result.absoluteDifference),
+      ).toBe(true)
       expect(result.lift === null || Number.isFinite(result.lift)).toBe(true)
       expect(result.pValue === null || Number.isFinite(result.pValue)).toBe(true)
     }
