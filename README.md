@@ -7,9 +7,10 @@ part that is easy to get subtly wrong: splitting visitors deterministically,
 keeping each one on the same version across visits, and counting what actually
 happened.
 
-> **Status: end of week 2 of 3.** Generation, assignment, conversion tracking,
-> and a results page with lift and confidence all work end to end. Week 3 is the
-> ship slice — see [Roadmap](#roadmap) for exactly what is and is not built yet.
+> **Status: week 3 of 3, in progress.** Generation, assignment, conversion
+> tracking, and a results page with lift and confidence all work end to end, and
+> `npm run seed` fills a fresh clone with experiments worth looking at. See
+> [Roadmap](#roadmap) for exactly what is and is not built yet.
 
 ---
 
@@ -34,12 +35,61 @@ Requires Node 22 or newer.
 git clone https://github.com/vedhith/variant-lab
 cd variant-lab
 npm install
+npm run seed    # optional: four demo experiments with real numbers
 npm run dev
 ```
 
 Open <http://localhost:3000>. There is nothing else to configure — the database
 is created at `.data/variant-lab.db` on first write, and variant generation
 works with no API key.
+
+## The demo
+
+Everything interesting here is a function of traffic, and a fresh clone has
+none. `npm run seed` supplies some:
+
+```
+$ npm run seed
+
+Seeded 4 demo experiments into .data/variant-lab.db
+
+  Pricing page — headline and CTA  2400 visitors · 198 conversions
+                                   a winner, a loser, and a paused variant nobody has seen
+                                   http://localhost:3000/experiments/exp_demo_pricing/results
+
+  Signup form — button copy        260 visitors · 29 conversions
+                                   a real difference that has not separated from noise yet
+                                   http://localhost:3000/experiments/exp_demo_signup/results
+
+  Docs landing — an exact tie      120 visitors · 30 conversions
+                                   identical rates: p = 1, no winner named
+                                   http://localhost:3000/experiments/exp_demo_docs/results
+
+  Blog CTA — no traffic yet        0 visitors · 0 conversions
+                                   a freshly created experiment before its first visitor
+                                   http://localhost:3000/experiments/exp_demo_blog/results
+```
+
+Those four are chosen to cover the states a results page has to survive, not
+just the happy one. Open the first and you get:
+
+| Variant | Visitors | Conversions | Rate | 95% interval | Lift | p | Verdict |
+|---|---|---|---|---|---|---|---|
+| control | 799 | 66 | 8.3% | 6.5% to 10.4% | — | — | baseline |
+| b | 792 | 99 | 12.5% | 10.4% to 15.0% | +4.2 pp (51.3%) | 0.006 | beating control |
+| c | 809 | 33 | 4.1% | 2.9% to 5.7% | −4.2 pp (−50.6%) | < 0.001 | losing to control |
+| d | 0 | 0 | 0.0% | — | — | — | not enough traffic |
+
+Variant `d` is paused at weight 0. It reports nothing rather than the −100% lift
+you would get by treating "no visitors" as "a 0% conversion rate" — a claim about
+a page nobody has been shown.
+
+Two properties make this a demo instead of a fixture dump. The visitors go
+through the same `assignVisitor` and `recordEvent` the API uses, so the seed
+breaks when the real path breaks; and the split and the conversions are hashed
+rather than random, so **the numbers above are what you will get too**, on any
+machine, on every re-seed. `npm run seed -- --reset` rebuilds them and
+`npm run seed -- --clear` removes them.
 
 ## Usage
 
@@ -151,6 +201,7 @@ worth having, because one of those is worth retrying and the other never is.
 | `VARIANT_LAB_PROVIDER` | auto | `rules` or `anthropic`, overriding the line above. CI pins `rules`. |
 | `ANTHROPIC_MODEL` | `claude-sonnet-5` | Model id, when the Anthropic provider is in use. |
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Point at a proxy or a stub. |
+| `VARIANT_LAB_URL` | `http://localhost:3000` | Base URL the seed script prints its links against. |
 
 ---
 
@@ -253,8 +304,11 @@ Real ones, not modesty:
   goes significant ("peeking") inflates false positives — that is a property of
   the method, not of this implementation. Pick a sample size up front. Sequential
   testing is not implemented.
-- **No screenshot in this README yet.** The results page is real and running,
-  but capturing it is part of the week-3 ship slice.
+- **No screenshot in this README yet.** The results page is real and running —
+  the table under [The demo](#the-demo) is copied from it — but capturing an
+  image of it is part of the week-3 ship slice.
+- **Experiments start from pasted HTML, not a URL.** The `sourceUrl` field
+  records where a page came from; it does not fetch it for you yet.
 - **SQLite, single process.** Fine for a landing page or a demo. Postgres is
   planned; concurrent writes across processes are not supported today.
 - **No auth.** Anyone who can reach the server can create and read experiments.
@@ -271,17 +325,23 @@ Real ones, not modesty:
       deterministic assignment, CI.
 - [x] **Week 2 — it's useful.** Conversion event ingest, results page with lift
       and confidence, LLM variant generation behind a provider adapter.
-- [ ] **Week 3 — it ships.** Screenshots, a seeded demo experiment, edge cases
-      (zero traffic, one variant, tied results).
+- [ ] **Week 3 — it ships.**
+  - [x] A seeded demo, so a fresh clone has something to look at.
+  - [x] Edge cases: zero traffic, an unseen variant, an exact tie, and a
+        single-variant experiment (rejected at creation — there is nothing to
+        compare a lone variant against).
+  - [ ] Creating an experiment from a URL rather than pasted HTML.
+  - [ ] A screenshot in this README.
 
 ---
 
 ## Development
 
 ```bash
-npm test        # vitest, 186 tests
+npm test        # vitest, 208 tests
 npm run typecheck
 npm run build
+npm run seed -- --help
 ```
 
 CI runs all three on every push.
