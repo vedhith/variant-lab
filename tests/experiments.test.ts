@@ -264,6 +264,64 @@ describe('migrations', () => {
     ).toThrow()
   })
 
+  it('rejects an experiment with only one variant', () => {
+    expect(() =>
+      createExperiment(
+        db,
+        validInput({ variants: [{ key: 'control', html: '<p>only</p>', isControl: true }] }),
+      ),
+    ).toThrow(/at least 2 variants/)
+  })
+
+  it('uses the ids it is handed, so the demo seed is reproducible', () => {
+    const experiment = createExperiment(db, validInput(), {
+      id: 'exp_demo_fixed',
+      variantIds: { control: 'var_demo_fixed_control', b: 'var_demo_fixed_b' },
+    })
+
+    expect(experiment.id).toBe('exp_demo_fixed')
+    expect(experiment.variants.map((v) => v.id).sort()).toEqual([
+      'var_demo_fixed_b',
+      'var_demo_fixed_control',
+    ])
+  })
+
+  it('still mints random ids for variants it was not given one for', () => {
+    const experiment = createExperiment(db, validInput(), {
+      id: 'exp_demo_partial',
+      variantIds: { control: 'var_demo_partial_control' },
+    })
+
+    const b = experiment.variants.find((v) => v.key === 'b')!
+    expect(b.id).toMatch(/^var_[0-9a-f]{16}$/)
+  })
+
+  it('refuses an id that is already taken', () => {
+    createExperiment(db, validInput(), { id: 'exp_demo_taken' })
+    expect(() => createExperiment(db, validInput(), { id: 'exp_demo_taken' })).toThrow(
+      ValidationError,
+    )
+  })
+
+  it('refuses an id that is not shaped like one', () => {
+    for (const id of ['', 'nope', 'exp_', 'exp_Bad', 'exp_with-dash', "exp_'; DROP TABLE"]) {
+      expect(() => createExperiment(db, validInput(), { id })).toThrow(ValidationError)
+    }
+  })
+
+  it('refuses to give two variants the same id', () => {
+    expect(() =>
+      createExperiment(db, validInput(), {
+        variantIds: { control: 'var_demo_same', b: 'var_demo_same' },
+      }),
+    ).toThrow(ValidationError)
+  })
+
+  it('writes nothing when a fixed id is rejected', () => {
+    expect(() => createExperiment(db, validInput(), { id: 'exp_BAD' })).toThrow()
+    expect(listExperiments(db)).toEqual([])
+  })
+
   it('cascades variant deletes when an experiment is removed', () => {
     const experiment = createExperiment(db, validInput())
     assignVisitor(db, experiment.id, 'visitor-1')

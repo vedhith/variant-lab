@@ -151,13 +151,53 @@ function validate(input: NewExperimentInput): Required<
   return { name, baselineHtml, sourceUrl, status, variants }
 }
 
+/** Ids a caller may supply: a three-letter prefix, then safe id characters. */
+const FIXED_ID_PATTERN = /^[a-z]{3}_[a-z0-9_]{1,60}$/
+
+/**
+ * Internal knobs for `createExperiment`.
+ *
+ * Fixing ids is what makes the seeded demo reproducible. Bucketing hashes the
+ * experiment id and orders variants by theirs, so random ids would produce a
+ * different split every time the demo was seeded, and the demo URLs printed in
+ * the README would change with it. Deliberately *not* reachable from the HTTP
+ * route: a caller who picked ids could collide with an existing experiment.
+ */
+export interface CreateExperimentOptions {
+  /** Force the experiment id instead of minting a random one. */
+  id?: string
+  /** Force variant ids, keyed by variant key. Unlisted keys still get random ids. */
+  variantIds?: Record<string, string>
+}
+
+function checkFixedId(db: Db, table: 'experiments' | 'variants', id: string): void {
+  if (!FIXED_ID_PATTERN.test(id)) {
+    throw new ValidationError(`"${id}" is not a usable id`)
+  }
+  if (db.prepare(`SELECT 1 FROM ${table} WHERE id = ?`).get(id)) {
+    throw new ValidationError(`id "${id}" is already taken`)
+  }
+}
+
 export function createExperiment(
   db: Db,
   input: NewExperimentInput,
+  options: CreateExperimentOptions = {},
 ): ExperimentWithVariants {
   const clean = validate(input)
   const now = new Date().toISOString()
-  const experimentId = newExperimentId()
+
+  if (options.id !== undefined) checkFixedId(db, 'experiments', options.id)
+  const fixedVariantIds = options.variantIds ?? {}
+  const seenFixed = new Set<string>()
+  for (const key of Object.keys(fixedVariantIds)) {
+    const id = fixedVariantIds[key]
+    if (seenFixed.has(id)) throw new ValidationError(`duplicate variant id "${id}"`)
+    seenFixed.add(id)
+    checkFixedId(db, 'variants', id)
+  }
+
+  const experimentId = options.id ?? newExperimentId()
 
   const insertExperiment = db.prepare(`
     INSERT INTO experiments (id, name, baseline_html, source_url, status, created_at)
@@ -179,7 +219,7 @@ export function createExperiment(
     )
     for (const v of clean.variants) {
       insertVariant.run(
-        newVariantId(),
+        fixedVariantIds[v.key] ?? newVariantId(),
         experimentId,
         v.key,
         v.html,
