@@ -175,6 +175,13 @@ table.results tbody tr:last-child td {
 
 .generate-row button {
   margin-top: 0;
+  white-space: nowrap;
+}
+
+/* The import URL takes the room; its button keeps its own width. */
+.generate-row input {
+  flex: 1;
+  min-width: 0;
 }
 
 label.inline {

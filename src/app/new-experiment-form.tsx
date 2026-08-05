@@ -39,14 +39,24 @@ export function NewExperimentForm() {
   const router = useRouter()
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
+  const [sourceUrl, setSourceUrl] = useState('')
   const [baselineHtml, setBaselineHtml] = useState('')
   const [count, setCount] = useState(2)
   const [drafts, setDrafts] = useState<Draft[]>([emptyDraft(0)])
   const [provider, setProvider] = useState<ProviderInfo | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  /**
+   * Where the baseline in the textarea actually came from — the URL after
+   * redirects, not the one that was typed. Cleared as soon as the HTML is
+   * edited by hand, because at that point the experiment is no longer a
+   * recording of that page and saying it was would be a small lie in the
+   * record.
+   */
+  const [importedFrom, setImportedFrom] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -62,6 +72,48 @@ export function NewExperimentForm() {
       cancelled = true
     }
   }, [])
+
+  async function onImport() {
+    setError(null)
+    setNotice(null)
+    setImporting(true)
+
+    try {
+      const res = await fetch('/api/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url: sourceUrl }),
+      })
+      const body = await res.json()
+
+      if (!res.ok) {
+        setError(body.error ?? `import failed with ${res.status}`)
+        return
+      }
+
+      setBaselineHtml(body.html)
+      setImportedFrom(body.finalUrl)
+      // Only fill a name that is still empty — an import should not overwrite
+      // what someone has already decided to call the experiment.
+      if (!name.trim() && body.title) setName(body.title)
+
+      const size = `${Math.max(1, Math.round(body.bytes / 1024))} KB`
+      setNotice(
+        body.finalUrl === body.requestedUrl
+          ? `Imported ${size} from ${body.finalUrl}. Read it before you generate from it.`
+          : `Imported ${size} from ${body.finalUrl} (redirected there). Read it before you generate from it.`,
+      )
+    } catch {
+      setError('could not reach the server')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  function onBaselineChange(html: string) {
+    setBaselineHtml(html)
+    if (importedFrom) setImportedFrom(null)
+  }
 
   async function onGenerate() {
     setError(null)
@@ -138,6 +190,7 @@ export function NewExperimentForm() {
         body: JSON.stringify({
           name,
           baselineHtml,
+          sourceUrl: importedFrom,
           status: 'running',
           variants: [
             { key: 'control', html: baselineHtml, isControl: true },
@@ -171,14 +224,37 @@ export function NewExperimentForm() {
         required
       />
 
+      <label htmlFor="source-url">Import a page (optional)</label>
+      <div className="row generate-row">
+        <input
+          id="source-url"
+          type="url"
+          value={sourceUrl}
+          onChange={(e) => setSourceUrl(e.target.value)}
+          placeholder="https://example.com/pricing"
+        />
+        <button type="button" onClick={onImport} disabled={importing || !sourceUrl.trim()}>
+          {importing ? 'Fetching…' : 'Fetch page'}
+        </button>
+      </div>
+      <p className="muted small">
+        Fetches the page and fills the baseline below with its content. Public URLs only, and
+        everything is editable afterwards — or skip this and paste your own HTML.
+      </p>
+
       <label htmlFor="baseline">Baseline HTML (control)</label>
       <textarea
         id="baseline"
         value={baselineHtml}
-        onChange={(e) => setBaselineHtml(e.target.value)}
+        onChange={(e) => onBaselineChange(e.target.value)}
         placeholder="<h1>Ship faster</h1>"
         required
       />
+      {importedFrom && (
+        <p className="muted small">
+          Imported from <span className="mono">{importedFrom}</span> — saved with the experiment.
+        </p>
+      )}
 
       <label htmlFor="goal">Conversion goal (optional)</label>
       <input
