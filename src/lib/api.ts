@@ -1,6 +1,7 @@
 import { NotFoundError, ValidationError } from './experiments'
 import { BucketingError } from './bucketing'
 import { GenerationError, NoVariantsError } from './generation/types'
+import { EmptyPageError, ImportError } from './importing/types'
 
 export interface ApiErrorBody {
   error: string
@@ -19,14 +20,16 @@ export function errorResponse(err: unknown): Response {
   if (err instanceof NotFoundError) {
     return json<ApiErrorBody>({ error: err.message }, 404)
   }
-  // The generator worked and found nothing to change. The request was fine, so
-  // it is not a 400, and nothing upstream broke, so it is not a 502.
-  if (err instanceof NoVariantsError) {
+  // Ran fine, produced nothing: the generator had no idea for this page, or
+  // the imported page held no content. The request was fine, so it is not a
+  // 400, and nothing upstream broke, so it is not a 502.
+  if (err instanceof NoVariantsError || err instanceof EmptyPageError) {
     return json<ApiErrorBody>({ error: err.message }, 422)
   }
-  // The generator failed, not the request. 502 rather than 500 so a caller can
-  // tell "retry this" apart from "this will never work".
-  if (err instanceof GenerationError) {
+  // Something upstream failed, not the request — the model errored, or the
+  // site would not serve us the page. 502 rather than 500 so a caller can tell
+  // "retry this" apart from "this will never work".
+  if (err instanceof GenerationError || err instanceof ImportError) {
     return json<ApiErrorBody>({ error: err.message }, 502)
   }
   // Anything else is a bug, not a client mistake. Log it for the server
