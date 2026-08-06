@@ -1,48 +1,90 @@
 # Variant Lab
 
-Run a real A/B test on a page without wiring up an analytics stack first.
+**A/B test a landing page in an afternoon, without a tag manager, a data
+warehouse, or an analytics vendor.** Point it at a URL, let it draft the
+alternative versions, and get back a results page that says which one won — or
+says nothing separated yet, which is the honest answer most of the time.
 
-You give it a URL or paste some HTML, it drafts alternative versions, and
-Variant Lab handles the part that is easy to get subtly wrong: splitting
-visitors deterministically, keeping each one on the same version across visits,
-and counting what actually happened.
+For anyone who has wanted to test a headline and found that step one was a
+six-week analytics migration. One SQLite file, one HTTP endpoint, no accounts.
 
-> **Status: week 3 of 3, in progress.** Importing a live page, generation,
-> assignment, conversion tracking, and a results page with lift and confidence
-> all work end to end, and `npm run seed` fills a fresh clone with experiments
-> worth looking at. See [Roadmap](#roadmap) for exactly what is and is not built
-> yet.
+## Quickstart
+
+Node 22 or newer, and no API key.
+
+```bash
+git clone https://github.com/vedhith/variant-lab && cd variant-lab
+npm install
+npm run seed
+npm run dev
+```
+
+Open <http://localhost:3000/experiments/exp_demo_pricing/results> and you are
+looking at a finished experiment:
+
+| Variant | Visitors | Conversions | Rate | 95% interval | Lift | p | Verdict |
+|---|---|---|---|---|---|---|---|
+| control | 799 | 66 | 8.3% | 6.5% to 10.4% | — | — | baseline |
+| b | 792 | 99 | 12.5% | 10.4% to 15.0% | +4.2 pp (51.3%) | 0.006 | beating control |
+| c | 809 | 33 | 4.1% | 2.9% to 5.7% | −4.2 pp (−50.6%) | < 0.001 | losing to control |
+| d | 0 | 0 | 0.0% | — | — | — | not enough traffic |
+
+Those numbers are hashed rather than random, so they are the numbers you get
+too. `npm run seed` also lays down three more experiments covering the states a
+results page has to survive — see [The demo](#the-demo).
+
+Nothing else needs configuring: the database appears at `.data/variant-lab.db`
+on first write, and variant generation runs offline until you set
+`ANTHROPIC_API_KEY`.
+
+## What this is not
+
+Worth knowing before you clone, rather than after:
+
+- **Not a hosted analytics product.** No accounts, no dashboard for your team,
+  no data retention story. It is one process with a SQLite file next to it.
+- **Not a copywriter.** With no API key the generator makes four mechanical
+  edits to a headline and a CTA, and it will not invent "trusted by 10,000
+  teams" to win a test. Set `ANTHROPIC_API_KEY` for actual ideas.
+- **Not safe to expose as-is.** No auth, and `/api/import` fetches URLs on your
+  behalf. Run it on your own machine, or deploy it with `VARIANT_LAB_DEMO=1`,
+  which is what the button below does.
+- **Not a sequential test.** Refreshing until it goes significant inflates false
+  positives. Pick a sample size up front.
+- **Not a replacement for Optimizely, VWO, or GrowthBook** if you need a visual
+  editor, multi-page funnels, or a team. Those are out of scope for v1.
+
+The longer list, with the reasons, is under [Limits](#limits).
+
+## Try it without cloning
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/vedhith/variant-lab)
+
+[`render.yaml`](render.yaml) deploys the seeded demo on Render's free tier. It
+sets `VARIANT_LAB_DEMO=1`, which switches off importing a live URL and caps how
+many experiments the instance will hold — Variant Lab has no accounts, so a
+public instance has to be narrower than a clone. `src/lib/hosting.ts` says
+exactly what is off and why. The database lives in `/tmp` on purpose: the demo's
+value is the seeded experiments, which are rebuilt identically on every boot,
+and an instance that forgets on restart cannot slowly fill with a stranger's
+pasted HTML.
+
+> **Status: week 3 of 3.** Every functional item of the v1 scope is built.
+> See [Roadmap](#roadmap) for what is left.
 
 ---
 
 ## Why
 
 Most A/B tooling assumes you already have a tag manager, a data warehouse, and
-a analytics vendor. For a landing page you want to test this afternoon, that is
-the whole project. Variant Lab is the small version: one SQLite file, one HTTP
-endpoint, no accounts.
+an analytics vendor. For a landing page you want to test this afternoon, that is
+the whole project. Variant Lab is the small version.
 
 The part worth stealing even if you use something else is `src/lib/bucketing.ts`
 — assignment is a pure function of `(experimentId, visitorId)`, so any number of
 servers agree on who sees what without sharing state.
 
 ---
-
-## Install
-
-Requires Node 22 or newer.
-
-```bash
-git clone https://github.com/vedhith/variant-lab
-cd variant-lab
-npm install
-npm run seed    # optional: four demo experiments with real numbers
-npm run dev
-```
-
-Open <http://localhost:3000>. There is nothing else to configure — the database
-is created at `.data/variant-lab.db` on first write, and variant generation
-works with no API key.
 
 ## The demo
 
@@ -72,23 +114,15 @@ Seeded 4 demo experiments into .data/variant-lab.db
 ```
 
 Those four are chosen to cover the states a results page has to survive, not
-just the happy one. Open the first and you get:
-
-| Variant | Visitors | Conversions | Rate | 95% interval | Lift | p | Verdict |
-|---|---|---|---|---|---|---|---|
-| control | 799 | 66 | 8.3% | 6.5% to 10.4% | — | — | baseline |
-| b | 792 | 99 | 12.5% | 10.4% to 15.0% | +4.2 pp (51.3%) | 0.006 | beating control |
-| c | 809 | 33 | 4.1% | 2.9% to 5.7% | −4.2 pp (−50.6%) | < 0.001 | losing to control |
-| d | 0 | 0 | 0.0% | — | — | — | not enough traffic |
-
-Variant `d` is paused at weight 0. It reports nothing rather than the −100% lift
-you would get by treating "no visitors" as "a 0% conversion rate" — a claim about
-a page nobody has been shown.
+just the happy one. The first is the table in the [Quickstart](#quickstart)
+above; variant `d` in it is paused at weight 0, and reports nothing rather than
+the −100% lift you would get by treating "no visitors" as "a 0% conversion
+rate" — a confident claim about a page nobody has been shown.
 
 Two properties make this a demo instead of a fixture dump. The visitors go
 through the same `assignVisitor` and `recordEvent` the API uses, so the seed
 breaks when the real path breaks; and the split and the conversions are hashed
-rather than random, so **the numbers above are what you will get too**, on any
+rather than random, so **those numbers are what you will get too**, on any
 machine, on every re-seed. `npm run seed -- --reset` rebuilds them and
 `npm run seed -- --clear` removes them.
 
@@ -233,6 +267,14 @@ A URL we refuse to fetch at all — a `file:` URL, one carrying credentials, one
 resolving to a private address — is a `400`, because that is a fact about the
 request rather than about the internet.
 
+A demo instance adds one more:
+
+- **`403`** — the route exists and your request was fine, but this instance has
+  the feature switched off. `/api/import` always answers this when
+  `VARIANT_LAB_DEMO=1`, and `POST /api/experiments` answers it once the instance
+  is full. The same call against a clone would succeed, which is why it is not a
+  `404`.
+
 ### Configuration
 
 | Variable | Default | Does |
@@ -244,6 +286,28 @@ request rather than about the internet.
 | `ANTHROPIC_BASE_URL` | `https://api.anthropic.com` | Point at a proxy or a stub. |
 | `VARIANT_LAB_URL` | `http://localhost:3000` | Base URL the seed script prints its links against. |
 | `VARIANT_LAB_ALLOW_PRIVATE_HOSTS` | unset | `1` lets `/api/import` fetch localhost and private addresses. For developing against a page on your own machine — see the warning below before setting it on a server. |
+| `VARIANT_LAB_DEMO` | unset | `1` marks this instance as publicly reachable: `/api/import` is refused and new experiments are capped. Set it on anything a stranger can load. |
+| `VARIANT_LAB_DEMO_MAX_EXPERIMENTS` | `200` | How many experiments a demo instance holds before it stops accepting more. `0` serves the seeded ones and takes nothing new. Ignored unless `VARIANT_LAB_DEMO` is on. |
+
+---
+
+## Deploying it
+
+`render.yaml` is a [Render blueprint](https://render.com/docs/blueprint-spec)
+for the demo, and the button at the top of this file runs it. Nothing about
+Variant Lab is Render-specific — it is a Next.js app and a SQLite file, so any
+host that gives you a Node process and a writable directory works. What matters
+is what the blueprint sets, and would need setting anywhere else:
+
+- **`VARIANT_LAB_DEMO=1`.** There are no accounts here. Without this flag a
+  deploy is an unauthenticated server-side URL fetcher on a public address, and
+  the SSRF guard is documented as a 95% rather than a 100%. Not optional.
+- **No `ANTHROPIC_API_KEY`.** Generation falls back to the offline rules, so
+  whoever finds the URL cannot spend your tokens.
+- **`npm ci --include=dev`.** Render sets `NODE_ENV=production`, and both
+  `next build` and the seed script live in `devDependencies`.
+- **Seed on start, not on build.** `npm run seed -- --reset && npm run start`
+  means every boot has the four demo experiments, whatever the disk did.
 
 ---
 
@@ -388,8 +452,8 @@ Real ones, not modesty:
   the method, not of this implementation. Pick a sample size up front. Sequential
   testing is not implemented.
 - **No screenshot in this README yet.** The results page is real and running —
-  the table under [The demo](#the-demo) is copied from it — but capturing an
-  image of it is part of the week-3 ship slice.
+  the table in the [Quickstart](#quickstart) is copied from it — but capturing
+  an image of it is the last item on the roadmap.
 - **Importing sees the HTML a server sends, not the page a browser renders.**
   A site that builds its content in JavaScript imports as an empty shell, and
   gets a `422` saying so. There is no headless browser here and there is not
@@ -403,7 +467,9 @@ Real ones, not modesty:
 - **SQLite, single process.** Fine for a landing page or a demo. Postgres is
   planned; concurrent writes across processes are not supported today.
 - **No auth.** Anyone who can reach the server can create and read experiments.
-  Do not put this on the open internet as-is.
+  Do not put this on the open internet as-is — `VARIANT_LAB_DEMO=1` narrows a
+  public instance to something defensible, but it is a smaller tool than a
+  clone, not the same one with a login on it.
 - **Variant HTML is stored and returned verbatim** and is capped at 512 KB.
   Whatever you paste is what gets served back, so treat it as trusted input.
 - **No visual editor, no multi-page funnels, no teams.** Out of scope for v1.
@@ -422,14 +488,18 @@ Real ones, not modesty:
         single-variant experiment (rejected at creation — there is nothing to
         compare a lone variant against).
   - [x] Creating an experiment from a URL rather than pasted HTML.
-  - [ ] A screenshot in this README.
+  - [x] A deploy config, and a demo mode that makes deploying it defensible.
+  - [ ] A screenshot or GIF in this README. Needs a browser — this is the last
+        thing between the repo and being finished.
+  - [ ] A live demo at a URL, so the button above is a link as well as a
+        blueprint.
 
 ---
 
 ## Development
 
 ```bash
-npm test        # vitest, 285 tests
+npm test        # vitest, 300 tests
 npm run typecheck
 npm run build
 npm run seed -- --help

@@ -1,0 +1,43 @@
+# One-click deploy for the Variant Lab demo.
+#
+# Render Blueprint spec: https://render.com/docs/blueprint-spec
+# Deploy it with the button in the README, or point Render at this file.
+#
+# Two choices here are worth explaining, because both look like mistakes:
+#
+#   VARIANT_LAB_DEMO=1 turns off importing a live URL and caps how many
+#   experiments the instance will hold. Variant Lab has no accounts, so a
+#   public instance has to be narrower than a clone — see src/lib/hosting.ts
+#   for what is switched off and why. Deploying this without the flag puts an
+#   unauthenticated server-side URL fetcher on the open internet.
+#
+#   The database lives in /tmp, not on a persistent disk. That is deliberate,
+#   not a free-tier compromise: the demo's value is the four seeded
+#   experiments, which are rebuilt from a hash on every boot and are identical
+#   every time. Anything a visitor creates is throwaway by design, and an
+#   instance that forgets on restart cannot slowly fill with someone else's
+#   pasted HTML. Add a `disk:` block here if you want a deployment that
+#   remembers.
+#
+# --include=dev because Render sets NODE_ENV=production, and both `next build`
+# and the seed script live in devDependencies.
+
+services:
+  - type: web
+    name: variant-lab-demo
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run seed -- --reset && npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VARIANT_LAB_DEMO
+        value: "1"
+      - key: VARIANT_LAB_DB
+        value: /tmp/variant-lab-demo.db
+      # No ANTHROPIC_API_KEY, so generation runs the offline rules. A key here
+      # would let anyone who finds the URL spend it.
+      - key: VARIANT_LAB_PROVIDER
+        value: rules
