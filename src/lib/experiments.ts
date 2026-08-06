@@ -256,6 +256,12 @@ export function getExperiment(db: Db, experimentId: string): ExperimentWithVaria
   return experiment
 }
 
+/** How many experiments exist. The demo instance uses this to cap its own growth. */
+export function countExperiments(db: Db): number {
+  const row = db.prepare('SELECT COUNT(*) AS n FROM experiments').get() as { n: number }
+  return row.n
+}
+
 export function listExperiments(db: Db, limit = 50): Experiment[] {
   const rows = db
     .prepare('SELECT * FROM experiments ORDER BY created_at DESC, id DESC LIMIT ?')

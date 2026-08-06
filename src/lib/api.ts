@@ -2,6 +2,7 @@ import { NotFoundError, ValidationError } from './experiments'
 import { BucketingError } from './bucketing'
 import { GenerationError, NoVariantsError } from './generation/types'
 import { EmptyPageError, ImportError } from './importing/types'
+import { DisabledError } from './hosting'
 
 export interface ApiErrorBody {
   error: string
@@ -19,6 +20,12 @@ export function errorResponse(err: unknown): Response {
   }
   if (err instanceof NotFoundError) {
     return json<ApiErrorBody>({ error: err.message }, 404)
+  }
+  // The endpoint exists and the request was fine — this instance has the
+  // feature switched off. 403 rather than 404: pretending the route is not
+  // there would send someone hunting for a typo in a URL that is correct.
+  if (err instanceof DisabledError) {
+    return json<ApiErrorBody>({ error: err.message }, 403)
   }
   // Ran fine, produced nothing: the generator had no idea for this page, or
   // the imported page held no content. The request was fine, so it is not a
