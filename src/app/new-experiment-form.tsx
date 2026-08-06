@@ -34,8 +34,13 @@ function emptyDraft(index: number): Draft {
  * the experiment. Everything a model writes gets read by a person before a
  * visitor sees it — and a draft that is 90% right is worth fixing rather than
  * regenerating.
+ *
+ * `importDisabled` mirrors what the server will do rather than deciding
+ * anything: `/api/import` refuses on a demo instance whatever this component
+ * renders. Hiding the field is a courtesy so nobody types a URL, waits, and
+ * gets a 403 for their trouble — the check that matters is in the route.
  */
-export function NewExperimentForm() {
+export function NewExperimentForm({ importDisabled = false }: { importDisabled?: boolean }) {
   const router = useRouter()
   const [name, setName] = useState('')
   const [goal, setGoal] = useState('')
@@ -224,23 +229,27 @@ export function NewExperimentForm() {
         required
       />
 
-      <label htmlFor="source-url">Import a page (optional)</label>
-      <div className="row generate-row">
-        <input
-          id="source-url"
-          type="url"
-          value={sourceUrl}
-          onChange={(e) => setSourceUrl(e.target.value)}
-          placeholder="https://example.com/pricing"
-        />
-        <button type="button" onClick={onImport} disabled={importing || !sourceUrl.trim()}>
-          {importing ? 'Fetching…' : 'Fetch page'}
-        </button>
-      </div>
-      <p className="muted small">
-        Fetches the page and fills the baseline below with its content. Public URLs only, and
-        everything is editable afterwards — or skip this and paste your own HTML.
-      </p>
+      {!importDisabled && (
+        <>
+          <label htmlFor="source-url">Import a page (optional)</label>
+          <div className="row generate-row">
+            <input
+              id="source-url"
+              type="url"
+              value={sourceUrl}
+              onChange={(e) => setSourceUrl(e.target.value)}
+              placeholder="https://example.com/pricing"
+            />
+            <button type="button" onClick={onImport} disabled={importing || !sourceUrl.trim()}>
+              {importing ? 'Fetching…' : 'Fetch page'}
+            </button>
+          </div>
+          <p className="muted small">
+            Fetches the page and fills the baseline below with its content. Public URLs only, and
+            everything is editable afterwards — or skip this and paste your own HTML.
+          </p>
+        </>
+      )}
 
       <label htmlFor="baseline">Baseline HTML (control)</label>
       <textarea

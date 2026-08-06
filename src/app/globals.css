@@ -113,6 +113,24 @@ button:disabled {
   color: var(--muted);
 }
 
+/* The shared-demo banner. Informative rather than wrong, so it reads calmer
+   than .error: panel background, accent rule down the left. */
+.notice {
+  margin: 20px 0;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.notice strong {
+  color: var(--text);
+}
+
 .error {
   margin-top: 16px;
   padding: 10px 12px;
