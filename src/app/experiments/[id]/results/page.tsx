@@ -123,7 +123,7 @@ export default async function ResultsPage({
           </div>
 
           <h2>Per variant</h2>
-          <div className="scroll-x">
+          <div className="scroll-x scroll-x--wide">
             <table className="results">
               <thead>
                 <tr>

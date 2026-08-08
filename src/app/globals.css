@@ -161,6 +161,20 @@ ul.plain {
   overflow-x: auto;
 }
 
+/* The column that runs off the edge is Verdict — the answer someone opened the
+   page for. Where the viewport has room to spare either side of the 860px prose
+   column, lend it to the table rather than making every reader scroll sideways
+   to reach the conclusion. The overhang is capped by the space actually
+   available, so the page itself never gains a horizontal scrollbar; below
+   1000px nothing changes and the box scrolls as before. */
+@media (min-width: 1000px) {
+  .scroll-x--wide {
+    --overhang: min(96px, calc((100vw - 860px) / 2 - 12px));
+    margin-left: calc(-1 * var(--overhang));
+    margin-right: calc(-1 * var(--overhang));
+  }
+}
+
 table.results {
   width: 100%;
   border-collapse: collapse;
