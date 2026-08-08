@@ -16,16 +16,33 @@ beforeEach(() => {
   db = openDatabase(':memory:')
 })
 
+/**
+ * Fixed ids, for the same reason the seeded demo uses them: bucketing hashes the
+ * experiment id and orders variants by theirs, so minting random ids gives these
+ * tests a different split on every run. A test that converts a fixed number of
+ * visitors then passes or fails on how the traffic happened to land — which is
+ * how "names no leader when a variant is merely ahead" ran green for six CI runs
+ * and then failed on a 41/19 split, where 5 conversions out of 19 was a
+ * significant result rather than a near miss. Each test gets a fresh in-memory
+ * database, so one constant id per file is safe.
+ */
+const EXPERIMENT_ID = 'exp_results_test'
+const VARIANT_IDS = { control: 'var_results_control', b: 'var_results_b' }
+
 function makeExperiment(): ExperimentWithVariants {
-  return createExperiment(db, {
-    name: 'Pricing headline',
-    baselineHtml: '<h1>Ship faster</h1>',
-    status: 'running',
-    variants: [
-      { key: 'control', html: '<h1>Ship faster</h1>', isControl: true },
-      { key: 'b', html: '<h1>Ship on Friday</h1>' },
-    ],
-  })
+  return createExperiment(
+    db,
+    {
+      name: 'Pricing headline',
+      baselineHtml: '<h1>Ship faster</h1>',
+      status: 'running',
+      variants: [
+        { key: 'control', html: '<h1>Ship faster</h1>', isControl: true },
+        { key: 'b', html: '<h1>Ship on Friday</h1>' },
+      ],
+    },
+    { id: EXPERIMENT_ID, variantIds: VARIANT_IDS },
+  )
 }
 
 /**
