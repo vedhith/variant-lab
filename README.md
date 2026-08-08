@@ -8,6 +8,16 @@ says nothing separated yet, which is the honest answer most of the time.
 For anyone who has wanted to test a headline and found that step one was a
 six-week analytics migration. One SQLite file, one HTTP endpoint, no accounts.
 
+![The results page for the seeded demo experiment: variant b beating the control
+by +4.2 pp at p = 0.006, variant c losing, and a paused variant reported as "not
+enough traffic" rather than as a
+loss.](docs/results.png)
+
+That is the seeded demo, not a mockup — `npm run seed` produces it on your
+machine with the same numbers, because the split and the conversions are hashed
+rather than random. Note the last row: a variant nobody has seen is reported as
+"not enough traffic", not as a 100% loss.
+
 ## Quickstart
 
 Node 22 or newer, and no API key.
@@ -132,6 +142,14 @@ machine, on every re-seed. `npm run seed -- --reset` rebuilds them and
 (or paste your own HTML), hit **Generate variants**, edit the drafts you like,
 submit. You land on the experiment page, which shows every version and how
 traffic has split so far.
+
+![The home page: the experiment form with a URL field and a Fetch page button, a
+baseline HTML box, a generated variant b below it, and the four seeded
+experiments listed underneath.](docs/home.png)
+
+![The experiment page for the seeded pricing test, showing each variant's HTML
+alongside how much traffic it actually received against its target, and the
+paused variant labelled as receiving none.](docs/experiment.png)
 
 **Importing a page.** Point it at a URL and get a baseline back:
 
@@ -451,9 +469,9 @@ Real ones, not modesty:
   goes significant ("peeking") inflates false positives — that is a property of
   the method, not of this implementation. Pick a sample size up front. Sequential
   testing is not implemented.
-- **No screenshot in this README yet.** The results page is real and running —
-  the table in the [Quickstart](#quickstart) is copied from it — but capturing
-  an image of it is the last item on the roadmap.
+- **Screenshots, not a GIF.** The images above are real captures of the seeded
+  demo (see [`docs/`](docs/README.md) for how to recapture them), but nothing
+  here shows the flow in motion.
 - **Importing sees the HTML a server sends, not the page a browser renders.**
   A site that builds its content in JavaScript imports as an empty shell, and
   gets a `422` saying so. There is no headless browser here and there is not
@@ -489,8 +507,9 @@ Real ones, not modesty:
         compare a lone variant against).
   - [x] Creating an experiment from a URL rather than pasted HTML.
   - [x] A deploy config, and a demo mode that makes deploying it defensible.
-  - [ ] A screenshot or GIF in this README. Needs a browser — this is the last
-        thing between the repo and being finished.
+  - [x] Screenshots in this README, captured from the seeded demo and
+        reproducible with [`docs/capture.mjs`](docs/capture.mjs).
+  - [ ] A GIF of the flow in motion, which the stills do not convey.
   - [ ] A live demo at a URL, so the button above is a link as well as a
         blueprint.
 

@@ -12,10 +12,13 @@ few hours. Do not schedule it for a day you cannot do that.
 
 ## Not ready to post until
 
-- [ ] **A screenshot or GIF of the results page is in the README.** This is the
-      single biggest gap. The pitch is "it tells you which variant won", and
-      right now the README asks people to imagine it. Record the seeded pricing
-      experiment — it has a winner, a loser, and a paused variant in one frame.
+- [x] **A screenshot of the results page is in the README.** The seeded pricing
+      experiment, which puts a winner, a loser and a paused variant in one
+      frame. `docs/capture.mjs` recaptures all three stills.
+- [ ] **A GIF of the flow.** Optional, and weaker than the still: the stills
+      already show the verdict, which is the thing people need to see. Worth
+      recording only if the URL → generate → results flow reads better in
+      motion.
 - [ ] **A live demo is deployed and linked.** `render.yaml` makes it one click,
       but a Show HN with a working URL and one without are different launches.
       Deploy it, put the URL at the top of the README, and check it survives a
@@ -115,7 +118,7 @@ couple of weeks rather than blasting them on one day.
 | r/SideProject | The build story | Most forgiving, good first post |
 | r/webdev | The tool | Showoff Saturday thread is safest |
 | r/nextjs | Next.js 16 + SQLite in one app | Small but on-topic |
-| r/selfhosted | Self-hosted alternative to Optimizely/VWO | Wants a screenshot and a Docker story — see gaps below |
+| r/selfhosted | Self-hosted alternative to Optimizely/VWO | Screenshot is in the README now; still wants a Docker story — see gaps below |
 | r/javascript | Deterministic bucketing implementation | Prefers technical depth over launches |
 | r/analytics | The stats decisions | Lead with Wilson intervals and the null cases, not the product |
 | r/SaaS, r/Entrepreneur | Test your landing page without a vendor | Lower quality discussion, decent traffic |
