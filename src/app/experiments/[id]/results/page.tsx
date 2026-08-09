@@ -4,6 +4,7 @@ import { getDatabase } from '@/lib/db'
 import { NotFoundError } from '@/lib/experiments'
 import { DEFAULT_EVENT_NAME, eventNames } from '@/lib/events'
 import { experimentResults, type VariantResult } from '@/lib/results'
+import { pValueClause, pValueText } from '@/lib/format'
 import type { Interval } from '@/lib/stats'
 
 export const dynamic = 'force-dynamic'
@@ -19,8 +20,6 @@ const points = (value: number): string =>
 const intervalText = (interval: Interval | null, format: (n: number) => string): string =>
   interval === null ? '—' : `${format(interval.low)} to ${format(interval.high)}`
 
-const pValueText = (p: number | null): string =>
-  p === null ? '—' : p < 0.001 ? '< 0.001' : p.toFixed(3)
 
 /** What this row means, in words, for someone who does not read p-values. */
 function verdict(variant: VariantResult): string {
@@ -112,7 +111,7 @@ export default async function ResultsPage({
                 results.leader.comparison !== null ? (
                   <> ({percent(results.leader.comparison.lift ?? 0)} relative)</>
                 ) : null}
-                , at p = {pValueText(results.leader.comparison?.pValue ?? null)}.
+                , at {pValueClause(results.leader.comparison?.pValue ?? null)}.
               </p>
             ) : (
               <p>
