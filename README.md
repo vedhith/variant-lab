@@ -8,15 +8,28 @@ says nothing separated yet, which is the honest answer most of the time.
 For anyone who has wanted to test a headline and found that step one was a
 six-week analytics migration. One SQLite file, one HTTP endpoint, no accounts.
 
+![A recording of the whole loop: pasting a page into the form, generating two
+variants with the reason for each, creating the experiment, 900 visitors being
+split across the three versions, and the results page reporting variant b ahead
+of the control by +7.8 pp at p = 0.004 while variant c is "too close to
+call".](docs/demo.gif)
+
+That is one continuous recording against a real server — the experiment is
+created through the form, the traffic is real requests to `/api/assign` and
+`/api/events`, and the verdict at the end is that experiment's own. Twenty-five
+seconds, start to answer.
+
+The still below is the *other* demo — the four experiments `npm run seed` lays
+down, which is what you get from the quickstart:
+
 ![The results page for the seeded demo experiment: variant b beating the control
 by +4.2 pp at p = 0.006, variant c losing, and a paused variant reported as "not
 enough traffic" rather than as a
 loss.](docs/results.png)
 
-That is the seeded demo, not a mockup — `npm run seed` produces it on your
-machine with the same numbers, because the split and the conversions are hashed
-rather than random. Note the last row: a variant nobody has seen is reported as
-"not enough traffic", not as a 100% loss.
+`npm run seed` produces it on your machine with the same numbers, because the
+split and the conversions are hashed rather than random. Note the last row: a
+variant nobody has seen is reported as "not enough traffic", not as a 100% loss.
 
 ## Quickstart
 
