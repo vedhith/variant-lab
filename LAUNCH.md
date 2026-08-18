@@ -15,7 +15,7 @@ few hours. Do not schedule it for a day you cannot do that.
 - [x] **A screenshot of the results page is in the README.** The seeded pricing
       experiment, which puts a winner, a loser and a paused variant in one
       frame. `docs/capture.mjs` recaptures all three stills.
-- [ ] **A GIF of the flow.** Optional, and weaker than the still: the stills
+- [x] **A GIF of the flow.** Optional, and weaker than the still: the stills
       already show the verdict, which is the thing people need to see. Worth
       recording only if the URL → generate → results flow reads better in
       motion.
